@@ -30,7 +30,7 @@ impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
 
         // prepare the PIO program
         let side_set = pio::SideSet::new(false, 1, false);
-        let mut a: pio::Assembler<32> = pio::Assembler::new_with_side_set(side_set);
+        let mut a: pio::Assembler<{ pio::RP2040_MAX_PROGRAM_SIZE }> = pio::Assembler::new_with_side_set(side_set);
 
         const T1: u8 = 2; // start bit
         const T2: u8 = 5; // data bit
@@ -96,7 +96,7 @@ impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
         }
 
         // DMA transfer
-        self.sm.tx().dma_push(self.dma.reborrow(), &words).await;
+        self.sm.tx().dma_push(self.dma.reborrow(), &words, false).await;
 
         Timer::after_micros(55).await;
     }
