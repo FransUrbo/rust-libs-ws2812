@@ -1,6 +1,6 @@
 [package]
 name = "ws2812"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -21,18 +21,13 @@ portable-atomic = { version = "1.10.0", features = ["critical-section"] }
 pio = "0.3.0"
 smart-leds = "0.3.0"
 
-# They haven't released the `embassy_time::with_deadline` yet, so need to use the GIT version.
 [dependencies.embassy-embedded-hal]
 features = ["defmt"]
 git = "https://github.com/embassy-rs/embassy.git"
 rev = "9edf5b7"
 
 [dependencies.embassy-executor]
-features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] #, "integrated-timers"]
-git = "https://github.com/embassy-rs/embassy.git"
-rev = "9edf5b7"
-
-[dependencies.embassy-time-driver]
+features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"]
 git = "https://github.com/embassy-rs/embassy.git"
 rev = "9edf5b7"
 
