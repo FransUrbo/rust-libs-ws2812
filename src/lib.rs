@@ -24,6 +24,7 @@ pub enum Colour {
     RED,
     GREEN,
     WHITE,
+    BLACK
 }
 
 impl Colour {
@@ -34,6 +35,7 @@ impl Colour {
 	    2 => Self::RED,
 	    3 => Self::GREEN,
 	    4 => Self::WHITE,
+	    5 => Self::BLACK,
 	    _ => panic!("Unknown value: {}", v),
 	}
     }
@@ -41,7 +43,7 @@ impl Colour {
 
 impl From<u8> for Colour {
     fn from(t: u8) -> Colour {
-	assert!(Self::ORANGE as u8 <= t && t <= Self::WHITE as u8);
+	assert!(Self::ORANGE as u8 <= t && t <= Self::BLACK as u8);
 	unsafe { transmute(t) }
     }
 }
@@ -151,6 +153,7 @@ impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
 	    Colour::RED    => c = [(colours::RED).into()],
 	    Colour::GREEN  => c = [(colours::GREEN).into()],
 	    Colour::WHITE  => c = [(colours::WHITE).into()],
+	    Colour::BLACK  => c = [(colours::BLACK).into()],
 	}
 
         self.write(&c).await;
