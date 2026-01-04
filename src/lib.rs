@@ -1,36 +1,71 @@
 #![no_std]
 
+use defmt::{info, Format};
+
 use embassy_rp::dma::{AnyChannel, Channel};
-use embassy_rp::{clocks, into_ref, Peripheral, PeripheralRef};
-use embassy_rp::pio::{Common, Config, FifoJoin, Instance, PioPin, ShiftConfig, ShiftDirection, StateMachine};
+use embassy_rp::pio::{
+    Common, Config, FifoJoin, Instance, PioPin, ShiftConfig, ShiftDirection, StateMachine,
+};
+use embassy_rp::{clocks, Peri};
 use embassy_time::Timer;
 
 use fixed::types::U24F8;
 use fixed_macro::fixed;
+use smart_leds::{RGB8, colors as colours};
+use core::mem::transmute;
 
-use smart_leds::RGB8;
+// For all colour options, see https://docs.rs/smart-leds/0.4.0/smart_leds/colors/index.html
+// These are the only ones I need.
+#[derive(Copy, Clone, Format, PartialEq)]
+#[repr(u8)]
+pub enum Colour {
+    ORANGE,
+    BLUE,
+    RED,
+    GREEN,
+    WHITE,
+}
+
+impl Colour {
+    pub fn from_integer(v: u8) -> Self {
+	match v {
+	    0 => Self::ORANGE,
+	    1 => Self::BLUE,
+	    2 => Self::RED,
+	    3 => Self::GREEN,
+	    4 => Self::WHITE,
+	    _ => panic!("Unknown value: {}", v),
+	}
+    }
+}
+
+impl From<u8> for Colour {
+    fn from(t: u8) -> Colour {
+	assert!(Self::ORANGE as u8 <= t && t <= Self::WHITE as u8);
+	unsafe { transmute(t) }
+    }
+}
 
 // ================================================================================
 
-pub struct Ws2812<'d, P: Instance, const S: usize, const N: usize> {
-    dma: PeripheralRef<'d, AnyChannel>,
+pub struct Ws2812<'d, P: Instance, const S: usize> {
+    dma: Peri<'d, AnyChannel>,
     sm: StateMachine<'d, P, S>,
 }
 
-impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
+impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
     pub fn new(
         pio: &mut Common<'d, P>,
         mut sm: StateMachine<'d, P, S>,
-        dma: impl Peripheral<P = impl Channel> + 'd,
-        pin: impl PioPin,
+        dma: Peri<'d, impl Channel>,
+        pin: Peri<'d, impl PioPin + 'd>,
     ) -> Self {
-        into_ref!(dma);
-
         // Setup sm0
 
         // prepare the PIO program
         let side_set = pio::SideSet::new(false, 1, false);
-        let mut a: pio::Assembler<{ pio::RP2040_MAX_PROGRAM_SIZE }> = pio::Assembler::new_with_side_set(side_set);
+        let mut a: pio::Assembler<{ pio::RP2040_MAX_PROGRAM_SIZE }> =
+            pio::Assembler::new_with_side_set(side_set);
 
         const T1: u8 = 2; // start bit
         const T2: u8 = 5; // data bit
@@ -64,7 +99,7 @@ impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
         cfg.use_program(&pio.load_program(&prg), &[&out_pin]);
 
         // Clock config, measured in kHz to avoid overflows
-        // TODO CLOCK_FREQ should come from embassy_rp
+        // TODO: CLOCK_FREQ should come from embassy_rp
         let clock_freq = U24F8::from_num(clocks::clk_sys_freq() / 1000);
         let ws2812_freq = fixed!(800: U24F8);
         let bit_freq = ws2812_freq * CYCLES_PER_BIT;
@@ -82,22 +117,42 @@ impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
         sm.set_enable(true);
 
         Self {
-            dma: dma.map_into(),
+            dma: dma.into(),
             sm,
         }
     }
 
-    pub async fn write(&mut self, colors: &[RGB8; N]) {
+    pub async fn write(&mut self, colors: &[RGB8; 1]) {
         // Precompute the word bytes from the colors
-        let mut words = [0u32; N];
-        for i in 0..N {
-            let word = (u32::from(colors[i].r) << 24) | (u32::from(colors[i].g) << 16) | (u32::from(colors[i].b) << 8);
+        let mut words = [0u32; 1];
+        for i in 0..1 {
+            let word = (u32::from(colors[i].r) << 24)
+                | (u32::from(colors[i].g) << 16)
+                | (u32::from(colors[i].b) << 8);
             words[i] = word;
         }
 
         // DMA transfer
-        self.sm.tx().dma_push(self.dma.reborrow(), &words, false).await;
+        self.sm
+            .tx()
+            .dma_push(self.dma.reborrow(), &words, false)
+            .await;
 
         Timer::after_micros(55).await;
+    }
+
+    pub async fn set_colour(&mut self, colour: Colour) {
+        info!("Setting LED colour: {}", colour);
+
+        let c: [RGB8; 1];
+        match colour {
+	    Colour::ORANGE => c = [(colours::YELLOW).into()],
+	    Colour::BLUE   => c = [(colours::BLUE).into()],
+	    Colour::RED    => c = [(colours::RED).into()],
+	    Colour::GREEN  => c = [(colours::GREEN).into()],
+	    Colour::WHITE  => c = [(colours::WHITE).into()],
+	}
+
+        self.write(&c).await;
     }
 }
