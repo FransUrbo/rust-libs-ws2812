@@ -16,20 +16,18 @@ categories = [
 
 [dependencies]
 defmt = "1.0.1"
-fixed = "1.23.1"
-fixed-macro = "1.2"
+fixed = "1.30.0"
+fixed-macro = "1.2.0"
 pio = "0.3.0"
 smart-leds = "0.4.0"
 
 [dependencies.embassy-time]
 features = ["defmt", "defmt-timestamp-uptime"]
-git = "https://github.com/embassy-rs/embassy.git"
-rev = "ef01e2e"
+version = "0.5.1"
 
 [dependencies.embassy-rp]
 features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl", "rp2040"]
-git = "https://github.com/embassy-rs/embassy.git"
-rev = "ef01e2e"
+version = "0.9.0"
 
 [profile.dev]
 codegen-units = 1
