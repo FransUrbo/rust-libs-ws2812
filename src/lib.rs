@@ -151,7 +151,7 @@ impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
 
         let c: [RGB8; 1];
         match colour {
-	    Colour::ORANGE => c = [(colours::YELLOW).into()],
+	    Colour::ORANGE => c = [(colours::SILVER).into()], // Most like yellow on my Neopixel
 	    Colour::BLUE   => c = [(colours::BLUE).into()],
 	    Colour::RED    => c = [(colours::RED).into()],
 	    Colour::GREEN  => c = [(colours::GREEN).into()],
