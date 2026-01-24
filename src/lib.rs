@@ -1,5 +1,8 @@
 #![no_std]
 
+// Origin:  https://github.com/embassy-rs/embassy/blob/main/embassy-rp/src/pio_programs/ws2812.rs
+// Example: https://github.com/embassy-rs/embassy/blob/main/examples/rp/src/bin/pio_ws2812.rs
+
 use defmt::{info, Format};
 
 use embassy_rp::dma::{AnyChannel, Channel};
