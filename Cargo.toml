@@ -1,12 +1,11 @@
 [package]
 name = "ws2812"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 description = "Provide functionality to control a WS2812 multi-colour LED"
 license = "GPL v3"
 authors = ["Turbo Fredriksson <turbo@bayour.com>"]
 repository = "https://github.com/FransUrbo/rust-libs-ws2812"
-homepage = "https://github.com/FransUrbo/drive-by-wire"
 categories = [
     "embedded",
     "no-std",
