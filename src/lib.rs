@@ -5,17 +5,18 @@
 
 use defmt::{info, Format};
 
-use embassy_rp::dma::{AnyChannel, Channel};
+use embassy_rp::dma::{Channel, ChannelInstance, InterruptHandler};
+use embassy_rp::interrupt::typelevel::Binding;
 use embassy_rp::pio::{
     Common, Config, FifoJoin, Instance, PioPin, ShiftConfig, ShiftDirection, StateMachine,
 };
 use embassy_rp::{clocks, Peri};
 use embassy_time::Timer;
 
+use core::mem::transmute;
 use fixed::types::U24F8;
 use fixed_macro::fixed;
-use smart_leds::{RGB8, colors as colours};
-use core::mem::transmute;
+use smart_leds::{colors as colours, RGB8};
 
 // For all colour options, see https://docs.rs/smart-leds/0.4.0/smart_leds/colors/index.html
 // These are the only ones I need.
@@ -27,42 +28,43 @@ pub enum Colour {
     RED,
     GREEN,
     WHITE,
-    BLACK
+    BLACK,
 }
 
 impl Colour {
     pub fn from_integer(v: u8) -> Self {
-	match v {
-	    0 => Self::ORANGE,
-	    1 => Self::BLUE,
-	    2 => Self::RED,
-	    3 => Self::GREEN,
-	    4 => Self::WHITE,
-	    5 => Self::BLACK,
-	    _ => panic!("Unknown value: {}", v),
-	}
+        match v {
+            0 => Self::ORANGE,
+            1 => Self::BLUE,
+            2 => Self::RED,
+            3 => Self::GREEN,
+            4 => Self::WHITE,
+            5 => Self::BLACK,
+            _ => panic!("Unknown value: {}", v),
+        }
     }
 }
 
 impl From<u8> for Colour {
     fn from(t: u8) -> Colour {
-	assert!(Self::ORANGE as u8 <= t && t <= Self::BLACK as u8);
-	unsafe { transmute(t) }
+        assert!(Self::ORANGE as u8 <= t && t <= Self::BLACK as u8);
+        unsafe { transmute(t) }
     }
 }
 
 // ================================================================================
 
 pub struct Ws2812<'d, P: Instance, const S: usize> {
-    dma: Peri<'d, AnyChannel>,
+    dma: Channel<'d>,
     sm: StateMachine<'d, P, S>,
 }
 
 impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
-    pub fn new(
+    pub fn new<C: ChannelInstance>(
         pio: &mut Common<'d, P>,
         mut sm: StateMachine<'d, P, S>,
-        dma: Peri<'d, impl Channel>,
+        dma: Peri<'d, C>,
+        irq: impl Binding<C::Interrupt, InterruptHandler<C>> + 'd,
         pin: Peri<'d, impl PioPin + 'd>,
     ) -> Self {
         // Setup sm0
@@ -122,7 +124,7 @@ impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
         sm.set_enable(true);
 
         Self {
-            dma: dma.into(),
+            dma: Channel::new(dma, irq),
             sm,
         }
     }
@@ -140,7 +142,7 @@ impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
         // DMA transfer
         self.sm
             .tx()
-            .dma_push(self.dma.reborrow(), &words, false)
+            .dma_push(&mut self.dma.reborrow(), &words, false)
             .await;
 
         Timer::after_micros(55).await;
@@ -151,13 +153,13 @@ impl<'d, P: Instance, const S: usize> Ws2812<'d, P, S> {
 
         let c: [RGB8; 1];
         match colour {
-	    Colour::ORANGE => c = [(colours::SILVER).into()], // Most like yellow on my Neopixel
-	    Colour::BLUE   => c = [(colours::BLUE).into()],
-	    Colour::RED    => c = [(colours::RED).into()],
-	    Colour::GREEN  => c = [(colours::GREEN).into()],
-	    Colour::WHITE  => c = [(colours::WHITE).into()],
-	    Colour::BLACK  => c = [(colours::BLACK).into()],
-	}
+            Colour::ORANGE => c = [(colours::SILVER).into()], // Most like yellow on my Neopixel
+            Colour::BLUE => c = [(colours::BLUE).into()],
+            Colour::RED => c = [(colours::RED).into()],
+            Colour::GREEN => c = [(colours::GREEN).into()],
+            Colour::WHITE => c = [(colours::WHITE).into()],
+            Colour::BLACK => c = [(colours::BLACK).into()],
+        }
 
         self.write(&c).await;
     }
